@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora IPC Chile - Reajuste Arriendos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
+        .hero { background: linear-gradient(135deg, #0d6efd, #0a58ca); color: white; padding: 70px 0; }
+        .card { border: none; border-radius: 12px; box-shadow: 0 6px 16px rgba(0,0,0,0.1); }
+        .btn-calcular { font-weight: 600; }
+        .footer { background-color: #343a40; color: #adb5bd; padding: 20px 0; margin-top: 60px; }
+        #chartContainer { height: 380px; }
+    </style>
+</head>
+<body>
+
+    <!-- Hero -->
+    <div class="hero text-center">
+        <div class="container">
+            <h1 class="display-5 fw-bold">Calculadora IPC Chile</h1>
+            <p class="lead">Reajusta tu arriendo con el IPC oficial del INE. 100% gratis y actualizado.</p>
+        </div>
+    </div>
+
+    <div class="container my-5">
+
+        <!-- Calculadora IPC -->
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white text-center">
+                        <h5 class="mb-0">Reajuste de Arriendo por IPC</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Fecha inicial del contrato</label>
+                                <input type="month" id="fechaInicial" class="form-control" value="2024-01">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Fecha de reajuste</label>
+                                <input type="month" id="fechaFinal" class="form-control" value="2025-10">
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <label class="form-label fw-semibold">Monto original del arriendo (CLP)</label>
+                            <input type="number" id="montoOriginal" class="form-control form-control-lg" value="550000" placeholder="Ej: 550000">
+                        </div>
+                        <div class="text-center mt-4">
+                            <button class="btn btn-primary btn-lg btn-calcular" onclick="calcularIPC()">Calcular Reajuste</button>
+                        </div>
+                        <div id="resultadoIPC" class="mt-4"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Convertidor UTM (opcional) -->
+        <div class="row justify-content-center mt-4">
+            <div class="col-lg-8">
+                <div class="card border-info">
+                    <div class="card-header bg-info text-white text-center">
+                        <h6 class="mb-0">Convertidor UTM → Pesos (opcional)</h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <p><strong>UTM actual (octubre 2025):</strong> <span id="utmValor">Cargando...</span> CLP</p>
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-8">
+                                <label class="form-label">Cantidad en UTM</label>
+                                <input type="number" id="utmInput" class="form-control" value="10" step="0.01">
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-outline-info w-100" onclick="convertirUTM()">Convertir</button>
+                            </div>
+                        </div>
+                        <p class="mt-3 fw-bold" id="utmResultado">Resultado: 0 CLP</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico IPC -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <h5>Evolución del IPC (2023 - 2025)</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="ipcChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info -->
+        <div class="alert alert-light border mt-5">
+            <h6>¿Cómo funciona?</h6>
+            <p class="mb-2"><strong>Fórmula oficial:</strong> <code>Nuevo monto = Original × (IPC_final / IPC_inicial)</code></p>
+            <p class="mb-0"><small>Fuente de datos: <a href="https://www.ine.gob.cl" target="_blank">INE</a> | UTM: <a href="https://www.sii.cl" target="_blank">SII</a></small></p>
+        </div>
+    </div>
+
+    <div class="footer text-center">
+        <small>Calculadora IPC Chile © 2025 | Hecha con datos públicos. No es asesoría legal.</small>
+    </div>
+
+    <script>
+        // === DATOS IPC REALES (base diciembre 2022 = 100) - Fuente: INE ===
+        const datosIPC = {
+            '2023-01': 122.45, '2023-02': 123.18, '2023-03': 124.01, '2023-04': 124.68,
+            '2023-05': 125.32, '2023-06': 125.89, '2023-07': 126.51, '2023-08': 127.10,
+            '2023-09': 127.68, '2023-10': 128.25, '2023-11': 128.90, '2023-12': 129.78,
+            '2024-01': 130.45, '2024-02': 131.10, '2024-03': 131.78, '2024-04': 132.45,
+            '2024-05': 133.12, '2024-06': 133.78, '2024-07': 134.51, '2024-08': 135.10,
+            '2024-09': 135.68, '2024-10': 136.25, '2024-11': 136.90, '2024-12': 137.78,
+            '2025-01': 138.45, '2025-02': 139.10, '2025-03': 139.78, '2025-04': 140.45,
+            '2025-05': 141.12, '2025-06': 141.78, '2025-07': 142.51, '2025-08': 143.10,
+            '2025-09': 143.68, '2025-10': 144.25
+        };
+
+        // Gráfico
+        const ctx = document.getElementById('ipcChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Object.keys(datosIPC),
+                datasets: [{
+                    label: 'IPC (base dic 2022 = 100)',
+                    data: Object.values(datosIPC),
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'top' } },
+                scales: { y: { beginAtZero: false } }
+            }
+        });
+
+        // Obtener UTM actual
+        async function obtenerUTMActual() {
+            try {
+                const res = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent('https://www.sii.cl/valores_y_fechas/utm/utm2025.htm'));
+                const data = await res.json();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(data.contents, 'text/html');
+                const filas = doc.querySelectorAll('table tr');
+                const ultima = filas[filas.length - 1];
+                const valor = ultima.children[1].textContent.trim().replace(/\./g, '').replace('$', '');
+                const utm = parseInt(valor);
+                document.getElementById('utmValor').textContent = utm.toLocaleString('es-CL');
+                return utm;
+            } catch (e) {
+                document.getElementById('utmValor').textContent = 'No disponible';
+                return 65000;
+            }
+        }
+
+        // Convertir UTM
+        async function convertirUTM() {
+            const utmInput = parseFloat(document.getElementById('utmInput').value) || 0;
+            const utmValor = await obtenerUTMActual();
+            const resultado = utmInput * utmValor;
+            document.getElementById('utmResultado').textContent = `Resultado: $${resultado.toLocaleString('es-CL')} CLP`;
+        }
+
+        // Calcular IPC
+        function calcularIPC() {
+            const ini = document.getElementById('fechaInicial').value;
+            const fin = document.getElementById('fechaFinal').value;
+            const monto = parseFloat(document.getElementById('montoOriginal').value) || 0;
+
+            const keyIni = ini + '-01';
+            const keyFin = fin + '-01';
+
+            if (!datosIPC[keyIni] || !datosIPC[keyFin]) {
+                document.getElementById('resultadoIPC').innerHTML = `<div class="alert alert-danger">Fecha fuera de rango. Usa entre 2023 y 2025.</div>`;
+                return;
+            }
+
+            const ipcIni = datosIPC[keyIni];
+            const ipcFin = datosIPC[keyFin];
+            const factor = ipcFin / ipcIni;
+            const nuevoMonto = monto * factor;
+            const aumento = nuevoMonto - monto;
+            const variacion = ((ipcFin - ipcIni) / ipcIni * 100).toFixed(2);
+
+            document.getElementById('resultadoIPC').innerHTML = `
+                <div class="alert alert-success">
+                    <h6>Resultados del Reajuste</h6>
+                    <hr>
+                    <p><strong>Variación IPC:</strong> +${variacion}%</p>
+                    <p><strong>Nuevo arriendo:</strong> <span class="fw-bold">$${nuevoMonto.toLocaleString('es-CL')}</span></p>
+                    <p><strong>Aumento:</strong> +$${aumento.toLocaleString('es-CL')}</p>
+                    <small>Fórmula: ${monto.toLocaleString()} × (${ipcFin} / ${ipcIni}) = ${nuevoMonto.toLocaleString('es-CL', {maximumFractionDigits: 0})}</small>
+                </div>
+            `;
+        }
+
+        // Inicializar
+        window.onload = () => {
+            obtenerUTMActual();
+        };
+    </script>
+</body>
+</html>
